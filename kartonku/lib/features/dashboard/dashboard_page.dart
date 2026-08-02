@@ -12,8 +12,6 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  int _navIndex = 0;
-
   // MOCK DATA — ganti dengan fetch dari Supabase view `product_stock` di Fase 3
   final List<Product> _products = [
     Product(id: '1', name: 'Laras Facial 250s', packsPerCarton: 12, lowStockThresholdCtn: 5, totalStockPacks: 25 * 12 + 10),
@@ -99,24 +97,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryGreen,
-        onPressed: () {
-          // TODO: buka fitur scan/OCR (belum dibangun)
-        },
-        child: const Icon(Icons.qr_code_scanner, color: Colors.white),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _navIndex,
-        onTap: (i) => setState(() => _navIndex = i),
-        selectedItemColor: AppColors.primaryGreen,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-        ],
-      ),
+      // bottomNavigationBar & floatingActionButton DIHAPUS — sekarang dikelola MainShell
     );
   }
 }

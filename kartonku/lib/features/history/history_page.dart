@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../shared/theme/app_colors.dart';
 import 'models/stock_transaction.dart';
 
+enum _TypeFilter { all, masuk, keluar }
+
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
@@ -20,10 +22,22 @@ class _HistoryPageState extends State<HistoryPage> {
   bool _loading = false;
   bool _hasMore = true;
 
+  String _searchQuery = '';
+  _TypeFilter _typeFilter = _TypeFilter.all;
+
   @override
   void initState() {
     super.initState();
     _loadMore();
+  }
+
+  Future<void> _resetAndReload() async {
+    setState(() {
+      _transactions.clear();
+      _offset = 0;
+      _hasMore = true;
+    });
+    await _loadMore();
   }
 
   Future<void> _loadMore() async {
@@ -31,13 +45,25 @@ class _HistoryPageState extends State<HistoryPage> {
     setState(() => _loading = true);
 
     try {
-      final query = _supabase
+      // [Medium confidence] syntax filter pada kolom nested (products.name) —
+      // butuh `!inner` join supaya PostgREST bisa filter berdasarkan tabel terkait.
+      var query = _supabase
           .from('stock_transactions')
-          .select('id, change_qty, reason, created_at, products(name, image_url, packs_per_carton)')
+          .select('id, change_qty, reason, created_at, products!inner(name, image_url, packs_per_carton)');
+
+      if (_searchQuery.isNotEmpty) {
+        query = query.ilike('products.name', '%$_searchQuery%');
+      }
+      if (_typeFilter == _TypeFilter.masuk) {
+        query = query.gt('change_qty', 0);
+      } else if (_typeFilter == _TypeFilter.keluar) {
+        query = query.lt('change_qty', 0);
+      }
+
+      final result = await query
           .order('created_at', ascending: false)
           .range(_offset, _offset + _pageSize - 1);
 
-      final result = await query;
       final newItems = (result as List).map((e) => StockTransaction.fromMap(e)).toList();
 
       setState(() {
@@ -53,7 +79,6 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  // Grouping "Hari Ini" / "Kemarin" / tanggal biasa
   String _dateLabel(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -74,15 +99,63 @@ class _HistoryPageState extends State<HistoryPage> {
     return grouped;
   }
 
-  void _openAddTransactionSheet() {
-    // TODO: buat form pilih produk + jumlah karton + tipe (masuk/keluar)
-    // lalu insert ke stock_transactions dengan change_qty = jumlahCarton * packsPerCarton
+  void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => const SizedBox(
-        height: 300,
-        child: Center(child: Text('Form tambah transaksi manual — belum diimplementasikan')),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Filter Tipe Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 12),
+                  RadioListTile<_TypeFilter>(
+                    title: const Text('Semua'),
+                    value: _TypeFilter.all,
+                    groupValue: _typeFilter,
+                    activeColor: AppColors.primaryGreen,
+                    onChanged: (v) => setSheetState(() => _typeFilter = v!),
+                  ),
+                  RadioListTile<_TypeFilter>(
+                    title: const Text('Masuk'),
+                    value: _TypeFilter.masuk,
+                    groupValue: _typeFilter,
+                    activeColor: AppColors.primaryGreen,
+                    onChanged: (v) => setSheetState(() => _typeFilter = v!),
+                  ),
+                  RadioListTile<_TypeFilter>(
+                    title: const Text('Keluar'),
+                    value: _TypeFilter.keluar,
+                    groupValue: _typeFilter,
+                    activeColor: AppColors.primaryGreen,
+                    onChanged: (v) => setSheetState(() => _typeFilter = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      minimumSize: const Size(double.infinity, 46),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {});
+                      _resetAndReload();
+                    },
+                    child: const Text('Terapkan', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -99,14 +172,6 @@ class _HistoryPageState extends State<HistoryPage> {
           'Riwayat',
           style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {
-              // TODO: fitur notifikasi belum dibahas — konfirmasi dulu scope-nya
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -127,8 +192,9 @@ class _HistoryPageState extends State<HistoryPage> {
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                     ),
-                    onSubmitted: (_) {
-                      // TODO: implementasikan filter/search — lihat catatan di bawah
+                    onSubmitted: (value) {
+                      _searchQuery = value.trim();
+                      _resetAndReload();
                     },
                   ),
                 ),
@@ -140,17 +206,20 @@ class _HistoryPageState extends State<HistoryPage> {
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: () {
-                      // TODO: filter by tipe (masuk/keluar) atau rentang tanggal
-                    },
+                    icon: Icon(
+                      Icons.filter_list,
+                      color: _typeFilter != _TypeFilter.all ? AppColors.primaryGreen : Colors.black87,
+                    ),
+                    onPressed: _showFilterSheet,
                   ),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: ListView(
+            child: _transactions.isEmpty && !_loading
+                ? const Center(child: Text('Tidak ada transaksi ditemukan', style: TextStyle(color: Colors.grey)))
+                : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 for (final entry in grouped.entries) ...[
@@ -204,11 +273,6 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryGreen,
-        onPressed: _openAddTransactionSheet,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

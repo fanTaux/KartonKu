@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/auth/login_page.dart';
-import 'features/dashboard/dashboard_page.dart'; // TAMBAHAN
+import 'shared/widgets/main_shell.dart'; // DIUBAH: pakai shell, bukan DashboardPage langsung
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
         builder: (context, snapshot) {
           final session = supabase.auth.currentSession;
           if (session != null) {
-            return const DashboardPage();
+            return const MainShell();
           }
           return const LoginPage();
         },

@@ -22,7 +22,6 @@ class _MainShellState extends State<MainShell> {
 
   void _openCameraScan() {
     // TODO: buka flow OCR/scan karton — belum diimplementasikan
-    // Fungsi ini dipanggil dari FAB yang sama baik di tab Dashboard maupun Riwayat
   }
 
   @override
@@ -32,7 +31,7 @@ class _MainShellState extends State<MainShell> {
         index: _navIndex,
         children: _pages,
       ),
-      floatingActionButton: _navIndex == 2 // sembunyikan FAB di tab Settings
+      floatingActionButton: _navIndex == 2
           ? null
           : FloatingActionButton(
         backgroundColor: AppColors.primaryGreen,
@@ -45,9 +44,20 @@ class _MainShellState extends State<MainShell> {
         selectedItemColor: AppColors.primaryGreen,
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Beranda',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'Riwayat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Profil',
+          ),
         ],
       ),
     );
